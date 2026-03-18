@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # pour zed
+
 # Définition du projet et du langage
 project(MonProjet
     VERSION 1.0.0
