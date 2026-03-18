@@ -1,8 +1,8 @@
-namespace simulationSDR {
-
 #include"cencoder.h"
 
 using namespace std;
+
+namespace simulationSDR {
 
 void source_generate(uint8_t *U_K, size_t K) {
 

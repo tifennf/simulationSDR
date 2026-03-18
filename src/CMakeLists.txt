@@ -1,5 +1,8 @@
 # 1. On crée l'exécutable
-add_executable(mon_executable main.cpp)
+add_executable(mon_executable
+  main.cpp
+  cencoder.cpp
+)
 
 # 2. On lui indique où trouver les headers
 # PUBLIC signifie que si mon_executable était une librairie,
