@@ -1,4 +1,4 @@
-#include "simulationSDR/cencoder.h"
+#include "simulationSDR/transmitter.h"
 #include <cstddef>
 #include <random>
 
