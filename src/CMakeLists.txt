@@ -1,7 +1,7 @@
 # 1. On crée l'exécutable
 add_executable(mon_executable
   main.cpp
-  cencoder.cpp
+  transmitter.cpp
 )
 
 # 2. On lui indique où trouver les headers
