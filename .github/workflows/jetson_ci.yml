@@ -1,0 +1,29 @@
+name: CI/CD Jetson Nano
+
+# Déclencheur : à chaque fois qu'on pousse sur la branche main
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+
+    steps:
+      - name: 📥 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configuration CMake
+        # On force une compilation au propre en supprimant le dossier build s'il existe
+        run: |
+          rm -rf build/
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: 🔨 Compilation
+        # La Jetson a 4 cœurs, on ajoute -j4 pour compiler 4 fois plus vite !
+        run: cmake --build build -j4
+
+      - name: 🧪 Lancement des tests (GTest)
+        run: |
+          cd build
+          ctest --output-on-failure
