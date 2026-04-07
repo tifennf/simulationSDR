@@ -7,10 +7,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 
-add_executable(tests_simulationSDR test_transmitter.cpp)
+add_executable(tests_simulationSDR test_transmitter.cpp test_receiver.cpp)
 
 
-target_sources(tests_simulationSDR PRIVATE ${PROJECT_SOURCE_DIR}/src/transmitter.cpp)
+target_sources(tests_simulationSDR PRIVATE ${PROJECT_SOURCE_DIR}/src/transmitter.cpp ${PROJECT_SOURCE_DIR}/src/receiver.cpp)
 
 
 target_include_directories(tests_simulationSDR PRIVATE ${PROJECT_SOURCE_DIR}/include)

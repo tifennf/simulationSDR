@@ -1,5 +1,5 @@
 # 1. On crée l'exécutable
-add_executable(simulationSDR main.cpp transmitter.cpp)
+add_executable(simulationSDR main.cpp transmitter.cpp receiver.cpp)
 
 # 2. On lui indique où trouver les headers
 # PUBLIC signifie que si simulationSDR était une librairie,
