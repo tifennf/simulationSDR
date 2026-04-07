@@ -3,88 +3,115 @@
 #include <cstdint>
 #include <cmath>
 
+#include <CLI/CLI.hpp>
+
 #include "simulationSDR/transmitter.h"
 #include "simulationSDR/receiver.h"
 
-#define N0 1 // Bruit
-
-#define K 4
-#define N 3*K
-
 using namespace simulationSDR;
-using namespace std;
 
-int main(){
-    uint8_t u_k[K];
-    source_generate(u_k, K);
+int main(int argc, char ** argv){
+    CLI::App app("Simulateur Monte Carlo");
+    
+    /* Declaration des options
+       * Declaration de la variable avec sa valeur par défaut
+       * Ajout de l'option à l'application
+       * Verification optionnelle
+    */
 
-    std::cout << "u_k: ";
-    for(auto b : u_k)
-        std::cout << (int)b << " ";
-    std::cout << std::endl;
+    float min_SNR = 0;
+    app.add_option("-m", min_SNR, "Min SNR");
+    float max_SNR = 0;
+    app.add_option("-M", max_SNR, "Max SNR");
 
-    uint8_t c_n[N];
+    float step_val = 1;
+    app.add_option("-s", step_val, "Step between two SNR points");
+
+    uint32_t f_max = 10;
+    app.add_option("-e", f_max, "Number of frame errors to reach to explore one SNR point");
+
+    size_t K = 4;
+    app.add_option("-K", K, "Number of information bits");
+    size_t N = 12;
+    app.add_option("-N", N, "Codeword size");
+
+    std::string rep = "rep-hard";
+    app.add_option("-D", rep, "Decoder type")
+      ->check(CLI::IsMember({"rep-hard", "rep-soft"})); // Verifie que la valuer est l'une des deux options
+
+    CLI11_PARSE(app, argc, argv);
+
+    if (N % K) {
+      std::cerr << "N must be a multiple of K" << std::endl;
+      return 1;
+    }
+
+    /* Simulation */
+
+    // Declaration dynamique des tableaux car taille non constante
+    uint8_t* u_k = new uint8_t[K];
+    uint8_t* c_n = new uint8_t[N];
+    int32_t* x_n = new int32_t[N];
+    float* y_n = new float[N];
+    float* l_n = new float[N];
+    uint8_t* v_k = new uint8_t[K];
+
     size_t n_reps = N / K;
-    codec_repetition_encode(u_k, c_n, K, n_reps);
+    float R = K / N;
 
-    std::cout << "c_n: ";
-    for(auto b : c_n)
-        std::cout << (int)b << " ";
-    std::cout << std::endl;
+    float esn, sigma;
+    uint64_t n_bit_errors, n_frame_errors;
+    uint64_t sim_frame;
 
-    int32_t x_n[N];
-    modem_BPSK_modulate(c_n, x_n, N);
+    float bit_error_rate, frame_error_rate;
 
-    std::cout << "x_n: ";
-    for(auto b : x_n)
-        std::cout << b << " ";
-    std::cout << std::endl;
+    for( float snr = min_SNR; snr <= max_SNR; snr += step_val) {
 
-    float SNR = n_reps/N0;
-    float sigma = sqrt(1 / (2 * pow(10, SNR/10)));
-    std::cout << "sigma = " << std::fixed << setprecision(2) << sigma << std::endl;
+      n_bit_errors = 0;
+      n_frame_errors = 0;
+      sim_frame = 0;
 
-    float y_n[N];
-    channel_AWGN_add_noise(x_n, y_n, N, sigma);
+      esn = snr + 10 * log10(R); // bs = 1 here (BPSK)
+      sigma = sqrt(1 / (2 * pow(10, esn/10)));
+      
+      do {
 
-    std::cout << "y_n: ";
-    for(float b : y_n)
-        std::cout << std::fixed << setprecision(2) << b << " ";
-    std::cout << std::endl;
+        source_generate(u_k, K);
 
-    float l_n[N];
-    modem_BPSK_demodulate(y_n, l_n, N, sigma);
+        codec_repetition_encode(u_k, c_n, K, n_reps);
 
-    std::cout << "l_n: ";
-    for(float b : l_n)
-        std::cout << std::fixed << setprecision(2) << b << " ";
-    std::cout << std::endl;
+        modem_BPSK_modulate(c_n, x_n, N);
 
-    uint8_t v_k_hard[K];
-    codec_repetition_hard_decode(l_n, v_k_hard, K, n_reps);
+        channel_AWGN_add_noise(x_n, y_n, N, sigma);
 
-    std::cout << "v_k_hard: ";
-    for(auto b : v_k_hard)
-        std::cout << (int)b << " ";
-    std::cout << std::endl;
+        modem_BPSK_demodulate(y_n, l_n, N, sigma);
 
-    uint8_t v_k_soft[K];
-    codec_repetition_soft_decode(l_n, v_k_soft, K, n_reps);
+        if (rep == "rep-hard") {
+          codec_repetition_hard_decode(l_n, v_k, K, n_reps);
+        } else {
+          codec_repetition_soft_decode(l_n, v_k, K, n_reps);
+        }
 
-    std::cout << "v_k_soft: ";
-    for(auto b : v_k_soft)
-        std::cout << (int)b << " ";
-    std::cout << std::endl;
+        monitor_check_errors(u_k, v_k, K, &n_bit_errors, &n_frame_errors);
 
-    uint64_t n_bit_errors_hard = 0, n_frame_errors_hard = 0;
-    monitor_check_errors(u_k, v_k_hard, K, &n_bit_errors_hard, &n_frame_errors_hard);
+        sim_frame++;
 
-    std::cout << "n_bit_errors_hard: " << n_bit_errors_hard << " / n_frame_errors_hard: " << n_frame_errors_hard <<std::endl;
-    
-    uint64_t n_bit_errors_soft = 0, n_frame_errors_soft = 0;
-    monitor_check_errors(u_k, v_k_soft, K, &n_bit_errors_soft, &n_frame_errors_soft);
+      } while (n_frame_errors < f_max);
 
-    std::cout << "n_bit_errors_soft: " << n_bit_errors_soft << " / n_frame_errors_soft: " << n_frame_errors_soft <<std::endl;
-    
+      bit_error_rate = n_bit_errors / (sim_frame * K);
+      frame_error_rate = n_frame_errors / sim_frame;
+
+      std::cout << "SNR:" << snr 
+        << " /  bit error rate: " << bit_error_rate 
+        << " /  frame error rate: " << frame_error_rate << std::endl;
+    }
+
+    delete[] u_k;
+    delete[] c_n;
+    delete[] x_n;
+    delete[] y_n;
+    delete[] l_n;
+    delete[] v_k;
+
     return 0;
 }

@@ -28,7 +28,11 @@ namespace simulationSDR {
           vote += L_N[(j * K) + i] < 0 ? -1 : 1;
         }
 
-        V_K[i] = vote < 0 ? 1 : 0; // Si 0 alors on choisit 0
+        if(vote) {
+          V_K[i] = vote < 0 ? 1 : 0;
+        } else {
+          V_K[i] = rand() % 2; // Si moy est a 0, alors on choisit au hasard
+        }
       }
     }
 
@@ -40,7 +44,11 @@ namespace simulationSDR {
           moy += L_N[(j * K) + i];
         }
 
-        V_K[i] = moy < 0 ? 1 : 0; // Si 0 alors on choisit 0
+        if(moy) {
+          V_K[i] = moy < 0 ? 1 : 0;
+        } else {
+          V_K[i] = rand() % 2; // Si moy est a 0, alors on choisit au hasard
+        }
       }
     }
 
