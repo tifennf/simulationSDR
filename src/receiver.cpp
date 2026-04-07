@@ -33,7 +33,7 @@ namespace simulationSDR {
     }
 
     void codec_repetition_soft_decode(const float *L_N, uint8_t *V_K, size_t K, size_t n_reps) {
-      int moy;
+      float moy;
       for(size_t i = 0; i < K; i++) {
         moy = 0;
         for(size_t j = 0; j < n_reps; j++) {
