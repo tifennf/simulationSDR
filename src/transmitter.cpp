@@ -13,8 +13,7 @@ void simulationSDR::source_generate(uint8_t* U_K, size_t K) {
 	}
 }
 
-void simulationSDR::codec_repetition_encode(const uint8_t* U_K, uint8_t* C_N, size_t K,
-											size_t n_reps) {
+void simulationSDR::codec_repetition_encode(const uint8_t* U_K, uint8_t* C_N, size_t K,	size_t n_reps) {
 	for (size_t k = 0; k < n_reps * K; k++) {
 		C_N[k] = U_K[k % K];
 	}
