@@ -13,7 +13,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF) # Désactive les extensions spécifiques aux compilateurs (ex: gnu++20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # pour zed
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 add_subdirectory(src)
 
 include(CTest)
 add_subdirectory(tests)
+
+include(FetchContent)
+
+FetchContent_Declare(
+    CLI11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG        main
+)
+
+FetchContent_MakeAvailable(CLI11)
