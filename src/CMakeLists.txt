@@ -1,18 +1,18 @@
 # 1. On crée l'exécutable
-add_executable(simulation main.cpp transmitter.cpp receiver.cpp)
+add_executable(simulator main.cpp transmitter.cpp receiver.cpp)
 
 # 2. On lui indique où trouver les headers
 # PUBLIC signifie que si simulation était une librairie,
 # ceux qui l'utilisent auraient aussi besoin de ce dossier include.
-target_include_directories(simulation PUBLIC
+target_include_directories(simulator PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(simulation PRIVATE CLI11::CLI11)
+target_link_libraries(simulator PRIVATE CLI11::CLI11)
 
 # 3. (Optionnel) Ajout de warnings pour le compilateur
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-  target_compile_options(simulation PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(simulator PRIVATE -Wall -Wextra -Wpedantic)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  target_compile_options(simulation PRIVATE /W4)
+  target_compile_options(simulator PRIVATE /W4)
 endif()
