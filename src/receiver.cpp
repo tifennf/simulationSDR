@@ -15,8 +15,10 @@ void channel_AWGN_add_noise(const int32_t* X_N, float* Y_N, size_t N, float sigm
 }
 
 void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) {
+	float facteur = 2.0f / (sigma * sigma);
+
 	for (size_t i = 0; i < N; i++) {
-		L_N[i] = Y_N[i]; // Pour l'instant nous copions juste les memes valeurs au lieu du LLR
+		L_N[i] = facteur*Y_N[i]; // Pour l'instant nous copions juste les memes valeurs au lieu du LLR
 	}
 }
 
