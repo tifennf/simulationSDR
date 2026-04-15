@@ -5,6 +5,11 @@ https://github.com/tifennf/simulationSDR
 cmake -S . -B build
 ```
 
+### Options
+```
+-DENABLE_STATS=ON
+```
+
 ## Compiler
 ```
 cmake --build build

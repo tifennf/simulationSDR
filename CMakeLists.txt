@@ -15,6 +15,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # pour zed
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+option(ENABLE_STATS "Enable compilation of stats code" OFF)
+
 add_subdirectory(src)
 
 include(CTest)
