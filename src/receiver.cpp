@@ -1,5 +1,7 @@
 #include "simulationSDR/receiver.h"
 #include "arm_neon.h"
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <random>
 
@@ -109,6 +111,13 @@ void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t
         }
     }
 }
+
+void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, size_t f){
+    for(size_t i=0; i<N; i++){
+        L8_N[i] = std::min(std::max(std::round(std::pow(2, f)*L_N[i]), std::pow(2,s-1)), -std::pow(2, s-1) -1 );
+    }
+}
+
 
 
 

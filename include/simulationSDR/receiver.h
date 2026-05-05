@@ -26,4 +26,9 @@ namespace simulationSDR {
     // soft decoder: computes the mean of each LLR to hard decide the bits
     void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps);
 
+    // transform numbers from floating-point representation to fixed-point representation
+    // `s` is the number of bits used in the quantizer block
+    // `f` is the number of bits of the fractional part (`s` >= `f`)
+    void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, size_t f);
+
 }
