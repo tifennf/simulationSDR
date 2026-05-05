@@ -122,8 +122,9 @@ int main(int argc, char** argv) {
 
 		bit_error_rate = (float)n_bit_errors / (sim_frame_cpt * K);
 		frame_error_rate = (float)n_frame_errors / sim_frame_cpt;
+		double sim_thr = (sim_frame_cpt* K) / avg_time;
 
-		file << snr_bit << ";" << snr_symbol << ";" << sigma << ";" << n_bit_errors << ";"
+		file << sim_thr << ";" << snr_bit << ";" << snr_symbol << ";" << sigma << ";" << n_bit_errors << ";"
 			 << n_frame_errors << ";" << sim_frame_cpt << ";" << bit_error_rate << ";"
 			 << frame_error_rate << ";" << time_spent << ";" << avg_time << "\n";
 
