@@ -16,3 +16,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   target_compile_options(simulator PRIVATE /W4)
 endif()
+
+# 4. Gestion de l'option ENABLE_STATS
+if(ENABLE_STATS)
+  target_compile_definitions(simulator PRIVATE ENABLE_STATS)
+endif()
