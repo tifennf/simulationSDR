@@ -4,77 +4,110 @@
 
 #include "simulationSDR/receiver.h"
 
-#define K 4
-#define N 3 * K
 
 namespace simulationSDR {
 
 TEST(ReceiverTest, HardDecode) {
-	const float L[N] = {0.2, -1.3, 0.3, 1.2, 0.8, -0.5, -1.5, 0.4, -0.1, 0.2, -1.8, 2};
-	uint8_t V[K];
+    {
+        const size_t K = 4;
+        const size_t n_reps = 3;
+        const size_t N = K * n_reps;
+    	const float L[N] = {0.2, -1.3, 0.3, 1.2, 0.8, -0.5, -1.5, 0.4, -0.1, 0.2, -1.8, 2};
+    	uint8_t V[K];
 
-	uint8_t V_ref[K] = {0, 1, 1, 0};
+    	uint8_t V_ref[K] = {0, 1, 1, 0};
 
-	simulationSDR::codec_repetition_hard_decode(L, V, K, 3);
+    	simulationSDR::codec_repetition_hard_decode(L, V, K, 3);
 
-	for (size_t k = 0; k < K; k++) {
-		if (V[k] != V_ref[k]) {
-			FAIL() << "HardDecode error at index " << k << ", (" << static_cast<int>(V[k]) << ", "
-				   << static_cast<int>(V_ref[k]) << ")";
-		}
-	}
+    	for (size_t k = 0; k < K; k++) {
+    		if (V[k] != V_ref[k]) {
+    			FAIL() << "HardDecode error at index " << k << ", (" << static_cast<int>(V[k]) << ", "
+    				   << static_cast<int>(V_ref[k]) << ")";
+    		}
+    	}
+    }
+
+    const size_t K = 32;
+    const size_t n_reps = 3;
+    const size_t N = K * n_reps;
+
+    int8_t L8_N[N];
+    uint8_t V_scalar[K] = {0};
+    uint8_t V_neon[K] = {0};
+
+    // Génération de LLRs aléatoires (entre -128 et 127)
+    // On utilise une seed fixe pour que le test soit reproductible à chaque exécution
+    srand(42);
+    for (size_t i = 0; i < N; i++) {
+        L8_N[i] = static_cast<int8_t>((rand() % 256) - 128);
+    }
+
+    // Exécution de la version scalaire (notre "Golden Model" de référence)
+    simulationSDR::codec_repetition_hard_decode8(L8_N, V_scalar, K, n_reps);
+
+    // Exécution de la version vectorisée
+    simulationSDR::codec_repetition_hard_decode8_neon(L8_N, V_neon, K, n_reps);
+
+    // Vérification que les deux fonctions produisent exactement le même résultat
+    for (size_t k = 0; k < K; k++) {
+        EXPECT_EQ(V_neon[k], V_scalar[k])
+            << "Mismatch between NEON and Scalar Int8 at index " << k;
+    }
 }
 
 TEST(ReceiverTest, SoftDecode) {
-	const float L[N] = {0.2, -1.3, 0.3, 1.2, 0.8, -0.5, -1.5, 0.4, -0.1, 0.2, -1.8, 2};
-	uint8_t V[K];
+    {
+        const size_t K = 4;
+        const size_t n_reps = 3;
+        const size_t N = K * n_reps;
+    	const float L[N] = {0.2, -1.3, 0.3, 1.2, 0.8, -0.5, -1.5, 0.4, -0.1, 0.2, -1.8, 2};
+    	uint8_t V[K];
 
-	uint8_t V_ref[K] = {0, 1, 1, 0};
+    	uint8_t V_ref[K] = {0, 1, 1, 0};
 
-	simulationSDR::codec_repetition_soft_decode(L, V, K, 3);
+    	simulationSDR::codec_repetition_soft_decode(L, V, K, 3);
 
-	for (size_t k = 0; k < K; k++) {
-		if (V[k] != V_ref[k]) {
-			FAIL() << "SoftDecode error at index " << k << ", (" << static_cast<int>(V[k]) << ", "
-				   << static_cast<int>(V_ref[k]) << ")";
-		}
-	}
+    	for (size_t k = 0; k < K; k++) {
+    		if (V[k] != V_ref[k]) {
+    			FAIL() << "SoftDecode error at index " << k << ", (" << static_cast<int>(V[k]) << ", "
+    				   << static_cast<int>(V_ref[k]) << ")";
+    		}
+    	}
+    }
 
-	// 1. Définition des dimensions
-	const int LIGNES = 3;
-	const int COL_ORIGINE = 4;
-	const int COL_CIBLE = 16;
+    const size_t K = 32;
+    const size_t n_reps = 3;
+    const size_t N = K * n_reps;
 
-	// 3. La matrice finale (3 lignes x 16 colonnes = 48 éléments)
-	// Attention: On ne peut pas mettre 'const' ici car on va la remplir dynamiquement
-	float large_L[LIGNES * COL_CIBLE];
+    int8_t L8_N[N];
+    uint8_t V_scalar[K] = {0};
+    uint8_t V_neon[K] = {0};
 
-	// 4. La boucle de duplication
-	for (int i = 0; i < LIGNES; ++i) {
-		for (int j = 0; j < COL_CIBLE; ++j) {
+    // Génération de LLRs aléatoires (entre -128 et 127)
+    // On utilise une seed fixe pour que le test soit reproductible à chaque exécution
+    srand(42);
+    for (size_t i = 0; i < N; i++) {
+        L8_N[i] = static_cast<int8_t>((rand() % 256) - 128);
+    }
 
-			// Calcul de l'index dans la grande matrice
-			int index_dest = (i * COL_CIBLE) + j;
+    // Exécution de la version scalaire (notre "Golden Model" de référence)
+    simulationSDR::codec_repetition_soft_decode8(L8_N, V_scalar, K, n_reps);
 
-			// Calcul de l'index dans la petite matrice avec le modulo (%)
-			// j % 4 va donner : 0, 1, 2, 3, 0, 1, 2, 3, 0, 1...
-			int index_src = (i * COL_ORIGINE) + (j % COL_ORIGINE);
+    // Exécution de la version vectorisée
+    simulationSDR::codec_repetition_soft_decode8_neon(L8_N, V_neon, K, n_reps);
 
-			// Copie de la valeur
-			large_L[index_dest] = L[index_src];
-		}
-	}
+    // Vérification que les deux fonctions produisent exactement le même résultat
+    for (size_t k = 0; k < K; k++) {
+        EXPECT_EQ(V_neon[k], V_scalar[k])
+            << "Mismatch between NEON and Scalar Int8 at index " << k;
+    }
 
-	int8_t L8[LIGNES*COL_CIBLE];
-
-
-	simulationSDR::quantizer_transform8(large_L, L8, LIGNES*COL_CIBLE, 8, 4);
-
-	uint8_t V_neon[LIGNES*COL_CIBLE];
-	simulationSDR::codec_repetition_soft_decode8_neon(L8, V_neon, LIGNES*COL_CIBLE,3);
 }
 
 TEST(ReceiverTest, Monitor) {
+    const size_t K = 4;
+    const size_t n_reps = 3;
+    const size_t N = K * n_reps;
 
 	const uint8_t U[K] = {0, 1, 1, 0};
 	const uint8_t V[K] = {1, 0, 1, 0};
@@ -93,34 +126,58 @@ TEST(ReceiverTest, Monitor) {
 	ASSERT_EQ(be, 2) << "be=" << static_cast<int>(be);
 }
 
-// TEST(ReceiverTest, Encode) {
-// 	uint8_t u_k[K] = {0, 1, 1, 0};
-// 	uint8_t c_n[N];
+TEST(QuantizerTest, Transform8_BasicAndSaturation) {
+    const size_t N = 5;
+    // On prend un panel de valeurs flottantes (positives, négatives, à virgule, et très grandes)
+    float L_N[N] = {1.0f, -1.5f, 0.1f, 10.0f, -10.0f};
+    int8_t L8_N[N] = {0};
 
-// 	size_t n_reps = N / K;
+    // Configuration : s = 8 bits, f = 4 bits fractionnaires
+    // Facteur d'échelle : 2^4 = 16
+    // Limite Min = -128, Limite Max = 127
+    size_t s = 8;
+    size_t f = 4;
 
-// 	codec_repetition_encode(u_k, c_n, K, n_reps);
+    simulationSDR::quantizer_transform8(L_N, L8_N, N, s, f);
 
-// 	EXPECT_EQ(std::size(c_n), N);
-// 	for (size_t k = 0; k < N; k++) {
-// 		if (c_n[k] != u_k[k % K]) {
-// 			FAIL() << "Encode error";
-// 		}
-// 	}
-// }
+    // Vérifications :
+    // 1.0 * 16 = 16 (Valeur classique)
+    EXPECT_EQ(L8_N[0], 16) << "Erreur sur la valeur classique";
 
-// TEST(TransmitterTest, Modulate){
+    // -1.5 * 16 = -24 (Valeur négative)
+    EXPECT_EQ(L8_N[1], -24) << "Erreur sur la valeur négative";
 
-//     uint8_t c_n[N] = {0,1,1,0,0,1,1,0,0,1,1,0};
-//     int32_t x_n[N];
+    // 0.1 * 16 = 1.6 -> arrondi à 2 (Test de l'arrondi)
+    EXPECT_EQ(L8_N[2], 2) << "Erreur sur l'arrondi (round)";
 
-//     modem_BPSK_modulate(c_n, x_n, N);
+    // 10.0 * 16 = 160 -> Dépasse 127, donc sature à 127 (Test Saturation Max)
+    EXPECT_EQ(L8_N[3], 127) << "Erreur de saturation maximale";
 
-//     for (size_t k = 0; k < N; k++) {
-//         if((c_n[k] == 0 && x_n[k] != 1) || c_n[k] == 1 && x_n[k] != -1){
-//             FAIL();
-//         }
-// 	}
-// }
+    // -10.0 * 16 = -160 -> Dépasse -128, donc sature à -128 (Test Saturation Min)
+    EXPECT_EQ(L8_N[4], -128) << "Erreur de saturation minimale";
+}
+
+TEST(QuantizerTest, Transform8_CustomBitwidth) {
+    const size_t N = 3;
+    float L_N[N] = {5.0f, 10.0f, -10.0f};
+    int8_t L8_N[N] = {0};
+
+    // Configuration différente : s = 6 bits, f = 2 bits fractionnaires
+    // Facteur d'échelle : 2^2 = 4
+    // Limite Min = -(2^5) = -32, Limite Max = 2^5 - 1 = 31
+    size_t s = 6;
+    size_t f = 2;
+
+    simulationSDR::quantizer_transform8(L_N, L8_N, N, s, f);
+
+    // 5.0 * 4 = 20
+    EXPECT_EQ(L8_N[0], 20);
+
+    // 10.0 * 4 = 40 -> Dépasse 31, sature à 31
+    EXPECT_EQ(L8_N[1], 31) << "Erreur de saturation Max pour s=6";
+
+    // -10.0 * 4 = -40 -> Dépasse -32, sature à -32
+    EXPECT_EQ(L8_N[2], -32) << "Erreur de saturation Min pour s=6";
+}
 
 } // namespace simulationSDR

@@ -13,18 +13,16 @@ namespace simulationSDR {
 
     // hard decoder: first hard decides each LLR and then makes a majority vote
     void codec_repetition_hard_decode(const float *L_N, uint8_t *V_K, size_t K, size_t n_reps);
-
-    // soft decoder: computes the mean of each LLR to hard decide the bits
-    void codec_repetition_soft_decode(const float *L_N, uint8_t *V_K, size_t K, size_t n_reps);
-
-    // update `n_bit_errors` and `n_frame_errors` variables depending on `U_K` and `V_K`
-    void monitor_check_errors(const uint8_t *U_K, const uint8_t *V_K, size_t K, uint64_t *n_bit_errors, uint64_t *n_frame_errors);
-
-    // hard decoder: first hard decides each LLR and then makes a majority vote
+    void codec_repetition_hard_decode8(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps);
     void codec_repetition_hard_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps);
 
     // soft decoder: computes the mean of each LLR to hard decide the bits
+    void codec_repetition_soft_decode(const float *L_N, uint8_t *V_K, size_t K, size_t n_reps);
+    void codec_repetition_soft_decode8(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps);
     void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps);
+
+    // update `n_bit_errors` and `n_frame_errors` variables depending on `U_K` and `V_K`
+    void monitor_check_errors(const uint8_t *U_K, const uint8_t *V_K, size_t K, uint64_t *n_bit_errors, uint64_t *n_frame_errors);
 
     // transform numbers from floating-point representation to fixed-point representation
     // `s` is the number of bits used in the quantizer block
