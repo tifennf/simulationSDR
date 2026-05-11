@@ -25,6 +25,20 @@ void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) 
 	}
 }
 
+
+void modem_BPSK_demodulate_neon(const float* Y_N, float* L_N, size_t N, float sigma) {
+	float16x8_t facteur = vdupq_n_f16(2.0f / (sigma * sigma));
+
+	for (size_t i = 0; i < N; i+=8) {
+        float16x8_t v = vld1q_f16(Y_N + );
+
+
+		L_N[i] = facteur*Y_N[i]; // Pour l'instant nous copions juste les memes valeurs au lieu du LLR
+	}
+}
+
+
+
 void codec_repetition_hard_decode(const float* L_N, uint8_t* V_K, size_t K, size_t n_reps) {
 	int vote;
 	for (size_t i = 0; i < K; i++) {
@@ -51,9 +65,6 @@ void codec_repetition_soft_decode(const float* L_N, uint8_t* V_K, size_t K, size
 	}
 }
 
-
-#include <stdint.h>
-#include <stddef.h>
 
 // hard decoder 8-bit
 void codec_repetition_hard_decode8(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps) {
