@@ -27,13 +27,12 @@ void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) 
 
 
 void modem_BPSK_demodulate_neon(const float* Y_N, float* L_N, size_t N, float sigma) {
-	float16x8_t facteur = vdupq_n_f16(2.0f / (sigma * sigma));
+    float facteur = 2.0f / (sigma * sigma);
 
-	for (size_t i = 0; i < N; i+=8) {
-        float16x8_t v = vld1q_f16(Y_N + );
-
-
-		L_N[i] = facteur*Y_N[i]; // Pour l'instant nous copions juste les memes valeurs au lieu du LLR
+	for (size_t i = 0; i < N; i+=4) {
+        float32x4_t v = vld1q_f32(Y_N + i);
+        v = vmulq_n_f32(v, facteur);
+        vst1q_f32(L_N+ i, v);
 	}
 }
 

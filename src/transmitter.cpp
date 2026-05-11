@@ -15,7 +15,7 @@ void simulationSDR::source_generate(uint8_t* U_K, size_t K) {
 	}
 }
 
-void source_generate_all_zeros(uint8_t *U_K, size_t K) {
+void simulationSDR::source_generate_all_zeros(uint8_t *U_K, size_t K) {
   for (size_t i = 0; i < K; i++) {
     U_K[i] = 0;
   }
@@ -36,23 +36,28 @@ void simulationSDR::modem_BPSK_modulate(const uint8_t* C_N, int32_t* X_N, size_t
 void simulationSDR::modem_BPSK_modulate_neon(const uint8_t* C_N, int32_t* X_N, size_t N) {
     for(int n = 0; n<N; n+=16){
         // [1,0,1,0] + [0,-1,0,-1] = [1,-1,1,-1]
-        int8x16_t v = vld1q_s8(C_N);
-        v = (int8x16_t)vceqz_s8(v);
-        int8x16_t u = vmovn(v);
-        u = vmul_n(u, -1);
+        uint8x16_t v = vld1q_u8(C_N);
+        uint8x16_t u = vceqzq_u8(v);
 
-        int8x16_t res_8 = vqaddq_s8(v,u);
+        int8x16_t a = (int8x16_t)v;
+        int8x16_t b = (int8x16_t)u; // FF -> -1
 
-        // on étend le résultat sur 16 bits puis sur 32 bits
-        int16x8_t res_16 = vmovl_s8(res_8);
-        int16x4_t res_16_low = vget_low_s16(vec_16);
-        int16x4_t res_16_high = vget_high_s16(vec_16);
+        int8x16_t res = vqaddq_s8(a,b);
+        int8x8_t res_low = vget_low_s8(res);
+        int8x8_t res_high = vget_high_s8(res);
 
-        int32x4_t res_32_low = vmovl_s16(res_16_low);
-        int32x4_t res_32_high = vmovl_s16(res_16_high);
+        // on étend le résultat sur 16 bits, on obtient deux vecteurs de 128 bits
+        int16x8_t x16 = vmovl_s8(res_low);
+        int16x8_t y16 = vmovl_s8(res_high);
 
-        vst1q_s32(X_N+n*16    , res_32_low);
-        vst1q_s32(X_N+n*16 + 8, res_32_high);
+        int16x4_t x16_low = vget_low_s16(x16);
+        int16x4_t y16_high = vget_high_s16(y16);
+
+        // on étend le résultat sur 32 bits, on obtient deux vecteurs de 128 bits
+        int32x4_t x32 = vmovl_s16(x16_low);
+        int32x4_t y32 = vmovl_s16(y16_high);
+        vst1q_s32(X_N+n*16    , x32);
+        vst1q_s32(X_N+n*16 + 8, y32);
     }
 
 
