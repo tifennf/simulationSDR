@@ -13,7 +13,7 @@ void simulationSDR::source_generate(uint8_t* U_K, size_t K) {
 	}
 }
 
-void source_generate_all_zeros(uint8_t *U_K, size_t K) {
+void simulationSDR::source_generate_all_zeros(uint8_t *U_K, size_t K) {
   for (size_t i = 0; i < K; i++) {
     U_K[i] = 0;
   }
@@ -31,8 +31,8 @@ void simulationSDR::modem_BPSK_modulate(const uint8_t* C_N, int32_t* X_N, size_t
 	}
 }
 
-void modem_BPSK_modulate_all_ones(const uint8_t *C_N, int32_t *X_N, size_t N) {
-  for (size_t n = 0; n < N; k++) {
+void simulationSDR::modem_BPSK_modulate_all_ones(const uint8_t *C_N, int32_t *X_N, size_t N) {
+  for (size_t n = 0; n < N; n++) {
     X_N[n] = 1;
   }
 }
