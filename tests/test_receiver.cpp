@@ -3,9 +3,52 @@
 #include <gtest/gtest.h>
 
 #include "simulationSDR/receiver.h"
+#include <cmath>
+
 
 
 namespace simulationSDR {
+
+TEST(ReceiverTest, AWGN_Neon_ZeroNoise) {
+    size_t N = 1000; // Taille qui ne tombe pas pile sur un multiple de 512
+    std::vector<int32_t> signal_in(N, 42); // Signal constant à 42
+    std::vector<float> signal_out(N, 0.0f);
+
+    // On applique un bruit de 0
+    simulationSDR::channel_AWGN_add_noise_neon(signal_in.data(), signal_out.data(), N, 0.0f);
+
+    for (size_t i = 0; i < N; i++) {
+        // La sortie doit être exactement 42.0
+        EXPECT_FLOAT_EQ(signal_out[i], 42.0f);
+    }
+}
+
+
+TEST(ReceiverTest, AWGN_Neon_StatisticalValidity) {
+    size_t N = 20000; // Beaucoup d'échantillons pour avoir une bonne base statistique
+    std::vector<int32_t> signal_in(N, 0); // Entrée vide
+    std::vector<float> signal_out(N, 0.0f);
+    float target_sigma = 2.5f;
+
+    simulationSDR::channel_AWGN_add_noise_neon(signal_in.data(), signal_out.data(), N, target_sigma);
+
+    double sum = 0.0;
+    double sum_sq = 0.0;
+
+    for (size_t i = 0; i < N; i++) {
+        sum += signal_out[i];
+        sum_sq += signal_out[i] * signal_out[i];
+    }
+
+    double mean = sum / N;
+    double variance = (sum_sq / N) - (mean * mean);
+    double stddev = std::sqrt(variance);
+
+    // Tolérance de 0.1 car c'est du pseudo-aléatoire
+    EXPECT_NEAR(mean, 0.0, 0.1) << "La moyenne doit être proche de 0";
+    EXPECT_NEAR(stddev, target_sigma, 0.1) << "L'écart-type doit être proche du sigma demandé";
+}
+
 
 TEST(ReceiverTest, HardDecode) {
     {
@@ -42,7 +85,6 @@ TEST(ReceiverTest, HardDecode) {
         L8_N[i] = static_cast<int8_t>((rand() % 256) - 128);
     }
 
-    // Exécution de la version scalaire (notre "Golden Model" de référence)
     simulationSDR::codec_repetition_hard_decode8(L8_N, V_scalar, K, n_reps);
 
     // Exécution de la version vectorisée
@@ -106,8 +148,6 @@ TEST(ReceiverTest, SoftDecode) {
 
 TEST(ReceiverTest, Monitor) {
     const size_t K = 4;
-    const size_t n_reps = 3;
-    const size_t N = K * n_reps;
 
 	const uint8_t U[K] = {0, 1, 1, 0};
 	const uint8_t V[K] = {1, 0, 1, 0};
@@ -124,6 +164,34 @@ TEST(ReceiverTest, Monitor) {
 
 	ASSERT_EQ(fe, 1) << "fe=" << static_cast<int>(fe);
 	ASSERT_EQ(be, 2) << "be=" << static_cast<int>(be);
+}
+
+TEST(ReceiverTest, MonitorNeon){
+    const size_t K = 16;
+
+	uint8_t U[K] = {0, 1, 1, 0};
+	uint8_t V[K] = {1, 0, 1, 0};
+
+	for(int i =4; i<16; i++){
+	    U[i] = U[i%4];
+	    V[i] = V[i%4];
+	}
+
+
+
+
+	uint64_t fe = 0;
+	uint64_t be = 0;
+
+	simulationSDR::monitor_check_errors_neon(U, U, K, &be, &fe);
+
+	ASSERT_EQ(fe, 0) << "fe=" << static_cast<int>(fe);
+	ASSERT_EQ(be, 0) << "be=" << static_cast<int>(be);
+
+	simulationSDR::monitor_check_errors_neon(U, V, K, &be, &fe);
+
+	ASSERT_EQ(fe, 1) << "fe=" << static_cast<int>(fe);
+	ASSERT_EQ(be, 8) << "be=" << static_cast<int>(be);
 }
 
 TEST(QuantizerTest, Transform8_BasicAndSaturation) {
