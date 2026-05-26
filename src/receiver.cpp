@@ -291,6 +291,42 @@ void monitor_check_errors_neon(const uint8_t* U_K, const uint8_t* V_K, size_t K,
 	}
 }
 
+void monitor_check_errors_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K, 
+                                  std::atomic<uint64_t>* n_bit_errors, std::atomic<uint64_t>* n_frame_errors) {
+	int fram_err = 0;
 
+	for (size_t i = 0; i < K; i++) {
+		if (U_K[i] != V_K[i]) {
+			(*n_bit_errors)++;
+			fram_err = 1;
+		}
+	}
+
+	if (fram_err) {
+		(*n_frame_errors)++;
+	}
+}
+
+void monitor_check_errors_neon_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K, 
+                                        std::atomic<uint64_t>* n_bit_errors, std::atomic<uint64_t>* n_frame_errors) {
+	int fram_err = 0;
+
+	for (size_t i = 0; i < K; i+=16) {
+	    uint8x16_t x = vld1q_u8(U_K + i);
+	    uint8x16_t y = vld1q_u8(V_K + i);
+		uint8x16_t is_eq = vceqq_u8(x,y);
+
+		int32_t s = vaddvq_s8((int8x16_t)is_eq);
+
+		if(s != -16){
+		    *n_bit_errors += s + 16; // s vaut -16 si aucune erreur
+			fram_err = 1;
+		}
+	}
+
+	if (fram_err) {
+		(*n_frame_errors)++;
+	}
+}
 
 } // namespace simulationSDR
