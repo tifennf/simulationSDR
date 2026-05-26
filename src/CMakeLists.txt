@@ -1,5 +1,5 @@
 # 1. On crée l'exécutable
-add_executable(simulator main.cpp transmitter.cpp receiver.cpp)
+add_executable(simulator main.cpp transmitter.cpp receiver.cpp box_muller.cpp)
 
 # 2. On lui indique où trouver les headers
 # PUBLIC signifie que si simulation était une librairie,

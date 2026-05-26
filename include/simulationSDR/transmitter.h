@@ -16,6 +16,7 @@ namespace simulationSDR {
 
     // read from C_N, write into X_N
     void modem_BPSK_modulate(const uint8_t *C_N, int32_t *X_N, size_t N);
+    void modem_BPSK_modulate_neon(const uint8_t *C_N, int32_t *X_N, size_t N);
 
     // write only ones in X_N
     void modem_BPSK_modulate_all_ones(const uint8_t *C_N, int32_t *X_N, size_t N);

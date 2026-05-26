@@ -1,4 +1,5 @@
 #include "simulationSDR/receiver.h"
+#include "simulationSDR/box_muller.h"
 #include "arm_neon.h"
 #include <algorithm>
 #include <cmath>
@@ -17,6 +18,88 @@ void channel_AWGN_add_noise(const int32_t* X_N, float* Y_N, size_t N, float sigm
 	}
 }
 
+void channel_AWGN_add_noise_neon(const int32_t* X_N, float* Y_N, size_t N, float sigma) {
+    // Taille du bloc conçue pour tenir parfaitement dans le cache L1
+    constexpr size_t HALF_BLOCK = 256;
+    constexpr size_t FULL_BLOCK = HALF_BLOCK * 2; // 512 éléments par itération
+
+    // Tampons mémoires alignés (très important pour les performances SIMD)
+    alignas(16) float u1_buf[HALF_BLOCK];
+    alignas(16) float u2_buf[HALF_BLOCK];
+    alignas(16) float z_buf[FULL_BLOCK];
+
+    // Initialisation du PRNG scalaire standard
+    std::random_device r;
+    std::default_random_engine e1(r());
+    std::uniform_real_distribution<float> unif(1e-7f, 1.0f); // ]0, 1]
+
+    // Charger l'écart-type sigma dans un registre NEON une seule fois
+    float32x4_t v_sigma = vdupq_n_f32(sigma);
+
+    size_t processed = 0;
+
+    // Boucle principale par blocs de 512
+    while (processed < N) {
+        size_t items_left = N - processed;
+        size_t current_full = std::min(FULL_BLOCK, items_left);
+        size_t current_half = (current_full + 1) / 2; // Division arrondie au supérieur
+
+        // --- ÉTAPE 1 : Générer les variables uniformes ---
+        // (C'est ici que se trouve votre dernier goulot d'étranglement scalaire)
+        for (size_t i = 0; i < current_half; i++) {
+            u1_buf[i] = unif(e1);
+            u2_buf[i] = unif(e1);
+        }
+
+        // --- ÉTAPE 2 : Transformation Box-Muller vectorisée ---
+        // ASTUCE : z0 remplit le début de z_buf, z1 remplit la 2ème moitié en décalant le pointeur.
+        // Cela nous donne `current_full` échantillons de bruit parfaits !
+        box_muller_neon(u1_buf, u2_buf, z_buf, z_buf + current_half, current_half);
+
+        // --- ÉTAPE 3 : Application du bruit au signal X_N (Vectorisé) ---
+        size_t i = 0;
+
+        // On traite le bloc 4 par 4
+        for (; i + 3 < current_full; i += 4) {
+            // 1. Charger 4 entiers du signal source
+            int32x4_t x_vec = vld1q_s32(X_N + processed + i);
+
+            // 2. Convertir les int32_t en float32
+            float32x4_t x_f32 = vcvtq_f32_s32(x_vec);
+
+            // 3. Charger 4 valeurs de bruit gaussien depuis notre tampon
+            float32x4_t z_vec = vld1q_f32(z_buf + i);
+
+            // 4. Mettre à l'échelle (bruit = z * sigma)
+            float32x4_t noise = vmulq_f32(z_vec, v_sigma);
+
+            // 5. Additionner (Y = X + bruit)
+            float32x4_t y_vec = vaddq_f32(x_f32, noise);
+
+            // 6. Sauvegarder dans le tableau de destination
+            vst1q_f32(Y_N + processed + i, y_vec);
+        }
+
+        // --- ÉTAPE 4 : Gérer la traîne du bloc courant ---
+        // Si current_full n'est pas un multiple de 4 (se produit uniquement au dernier bloc)
+        for (; i < current_full; i++) {
+            Y_N[processed + i] = (float)X_N[processed + i] + z_buf[i] * sigma;
+        }
+
+        processed += current_full;
+    }
+}
+
+// void channel_AWGN_add_noise_neon(const int32_t* X_N, float* Y_N, size_t N, float sigma) {
+// 	std::random_device r;
+// 	std::default_random_engine e1(r());
+// 	std::normal_distribution<float> n(0, sigma);
+
+// 	for (size_t i = 0; i < N; i++) {
+// 		Y_N[i] = X_N[i] + n(e1);
+// 	}
+// }
+
 void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) {
 	float facteur = 2.0f / (sigma * sigma);
 
@@ -24,6 +107,19 @@ void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) 
 		L_N[i] = facteur*Y_N[i]; // Pour l'instant nous copions juste les memes valeurs au lieu du LLR
 	}
 }
+
+
+void modem_BPSK_demodulate_neon(const float* Y_N, float* L_N, size_t N, float sigma) {
+    float facteur = 2.0f / (sigma * sigma);
+
+	for (size_t i = 0; i < N; i+=4) {
+        float32x4_t v = vld1q_f32(Y_N + i);
+        v = vmulq_n_f32(v, facteur);
+        vst1q_f32(L_N+ i, v);
+	}
+}
+
+
 
 void codec_repetition_hard_decode(const float* L_N, uint8_t* V_K, size_t K, size_t n_reps) {
 	int vote;
@@ -51,9 +147,6 @@ void codec_repetition_soft_decode(const float* L_N, uint8_t* V_K, size_t K, size
 	}
 }
 
-
-#include <stdint.h>
-#include <stddef.h>
 
 // hard decoder 8-bit
 void codec_repetition_hard_decode8(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps) {
@@ -87,21 +180,7 @@ void codec_repetition_soft_decode8(const int8_t *L8_N, uint8_t *V_K, size_t K, s
 }
 
 
-void monitor_check_errors(const uint8_t* U_K, const uint8_t* V_K, size_t K, uint64_t* n_bit_errors,
-						  uint64_t* n_frame_errors) {
-	int fram_err = 0;
 
-	for (size_t i = 0; i < K; i++) {
-		if (U_K[i] != V_K[i]) {
-			(*n_bit_errors)++;
-			fram_err = 1;
-		}
-	}
-
-	if (fram_err) {
-		(*n_frame_errors)++;
-	}
-}
 
 // hard decoder: first hard decides each LLR and then makes a majority vote
 void codec_repetition_hard_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps) {
@@ -157,8 +236,7 @@ void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t
 }
 void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, size_t f) {
     float scale = static_cast<float>(1 << f); // 2^f
-
-    // Limites pour s bits (ex pour s=8 : min = -128, max = 127)
+    // // Limites pour s bits (ex pour s=8 : min = -128, max = 127)
     float limit_min = static_cast<float>(-(1 << (s - 1)));
     float limit_max = static_cast<float>((1 << (s - 1)) - 1);
 
@@ -166,7 +244,6 @@ void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, si
         // Mise à l'échelle et arrondi
         float val = std::round(L_N[i] * scale);
 
-        // Saturation (Clipping)
         val = std::max(val, limit_min); // Bloque la descente
         val = std::min(val, limit_max); // Bloque la montée
 
@@ -175,6 +252,44 @@ void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, si
     }
 }
 
+
+void monitor_check_errors(const uint8_t* U_K, const uint8_t* V_K, size_t K, uint64_t* n_bit_errors,
+						  uint64_t* n_frame_errors) {
+	int fram_err = 0;
+
+	for (size_t i = 0; i < K; i++) {
+		if (U_K[i] != V_K[i]) {
+			(*n_bit_errors)++;
+			fram_err = 1;
+		}
+	}
+
+	if (fram_err) {
+		(*n_frame_errors)++;
+	}
+}
+
+void monitor_check_errors_neon(const uint8_t* U_K, const uint8_t* V_K, size_t K, uint64_t* n_bit_errors,
+						  uint64_t* n_frame_errors) {
+	int fram_err = 0;
+
+	for (size_t i = 0; i < K; i+=16) {
+	    uint8x16_t x = vld1q_u8(U_K + i);
+	    uint8x16_t y = vld1q_u8(V_K + i);
+		uint8x16_t is_eq = vceqq_u8(x,y);
+
+		int32_t s = vaddvq_s8((int8x16_t)is_eq);
+
+		if(s != -16){
+		    *n_bit_errors += s + 16; // s vaut -16 si aucune erreur
+			fram_err = 1;
+		}
+	}
+
+	if (fram_err) {
+		(*n_frame_errors)++;
+	}
+}
 
 
 
