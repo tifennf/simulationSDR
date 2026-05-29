@@ -1,3 +1,6 @@
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -185,7 +188,7 @@ int main(int argc, char** argv) {
                             }
                         }
                     }
-                    
+
                     // Ajout du bruit
                     {
                         simulationSDR::ScopedTimer t(all_thread_stats[j].blocks[simulationSDR::BLOCK_CHANNEL]);
@@ -325,12 +328,12 @@ int main(int argc, char** argv) {
                 double avg_lat = (block_counts[b] > 0) ? (block_totals[b] / block_counts[b]) : 0.0;
                 double min_lat = (block_counts[b] > 0) ? block_mins[b] : 0.0;
                 double max_lat = (block_counts[b] > 0) ? block_maxs[b] : 0.0;
-                
+
                 double mbps = 0.0;
                 if (block_totals[b] > 0) {
                     mbps = (double)(block_counts[b] * block_sizes[b]) / (block_totals[b] * 1e6);
                 }
-                
+
                 double pct = (total_measured_time > 0) ? (block_totals[b] / total_measured_time * 100.0) : 0.0;
 
                 stats_file << block_names[b] << " "

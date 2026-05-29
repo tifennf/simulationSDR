@@ -1,3 +1,6 @@
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #include "simulationSDR/transmitter.h"
 #include <cstddef>
 #include <cstdint>
@@ -53,9 +56,9 @@ void simulationSDR::modem_BPSK_modulate_neon(const uint8_t* C_N, int32_t* X_N, s
 
         int8x16_t a = (int8x16_t)v;
         int8x16_t b = (int8x16_t)u; // FF -> -1
-	
-	int8x16_t a_inv = vnegq_s8(a);	
-	int8x16_t b_inv = vnegq_s8(b);	
+
+	int8x16_t a_inv = vnegq_s8(a);
+	int8x16_t b_inv = vnegq_s8(b);
 
 //	std::cout << "s = ";
 //	display_r8_K(a, "%d\t", N);
@@ -65,7 +68,7 @@ void simulationSDR::modem_BPSK_modulate_neon(const uint8_t* C_N, int32_t* X_N, s
 //	std::cout << "r = ";
 //	display_r8_K(res, "%d\t", N);
 //	std::cout << std::endl;
-	// 1. Première expansion : 8-bit vers 16-bit
+	// Première expansion : 8-bit vers 16-bit
 	int8x8_t res_low = vget_low_s8(res);  // Récupère les éléments 0-7
 	int8x8_t res_high = vget_high_s8(res); // Récupère les éléments 8-15
 
@@ -73,7 +76,7 @@ void simulationSDR::modem_BPSK_modulate_neon(const uint8_t* C_N, int32_t* X_N, s
 	int16x8_t res16_low = vmovl_s8(res_low);
 	int16x8_t res16_high = vmovl_s8(res_high);
 
-	// 2. Deuxième expansion : 16-bit vers 32-bit
+	// Deuxième expansion : 16-bit vers 32-bit
 	// Il faut séparer CHAQUE vecteur 16 bits en deux (low et high)
 	int16x4_t res16_ll = vget_low_s16(res16_low);   // éléments 0-3
 	int16x4_t res16_lh = vget_high_s16(res16_low);  // éléments 4-7
@@ -86,7 +89,7 @@ void simulationSDR::modem_BPSK_modulate_neon(const uint8_t* C_N, int32_t* X_N, s
 	int32x4_t out2 = vmovl_s16(res16_hl); // Contient les éléments 8-11
 	int32x4_t out3 = vmovl_s16(res16_hh); // Contient les éléments 12-15
 
-	// 3. Sauvegarde en mémoire
+	// Sauvegarde en mémoire
 	// n avance de 16, donc X_N + n pointe exactement au bon endroit pour ce bloc
 	vst1q_s32(X_N + n,      out0);
 	vst1q_s32(X_N + n + 4,  out1);

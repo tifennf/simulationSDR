@@ -1,3 +1,6 @@
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #include "simulationSDR/box_muller.h"
 #include "simulationSDR/neon_mathfun.h"
 

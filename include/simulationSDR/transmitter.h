@@ -1,3 +1,6 @@
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #pragma once
 
 #include <cstdint>

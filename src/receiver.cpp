@@ -1,3 +1,6 @@
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #include "simulationSDR/receiver.h"
 #include "simulationSDR/box_muller.h"
 #include "arm_neon.h"

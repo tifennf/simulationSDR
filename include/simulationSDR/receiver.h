@@ -1,5 +1,8 @@
 #pragma once
 
+// Alexander BAKALOV
+// Tifenn FABRICI
+
 #include <cstdint>
 #include <cstddef>
 #include <thread>
@@ -30,7 +33,7 @@ namespace simulationSDR {
     void monitor_check_errors(const uint8_t *U_K, const uint8_t *V_K, size_t K, uint64_t *n_bit_errors, uint64_t *n_frame_errors);
     void monitor_check_errors_neon(const uint8_t* U_K, const uint8_t* V_K, size_t K, uint64_t* n_bit_errors,
 						  uint64_t* n_frame_errors);
-    void monitor_check_errors_neon_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K, 
+    void monitor_check_errors_neon_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K,
                                             std::atomic<uint64_t>* n_bit_errors, std::atomic<uint64_t>* n_frame_errors);
     void monitor_check_errors_atomic(const uint8_t *U_K, const uint8_t *V_K, size_t K, std::atomic<uint64_t> *n_bit_errors, std::atomic<uint64_t> *n_frame_errors);
 
