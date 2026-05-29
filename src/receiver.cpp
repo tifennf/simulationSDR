@@ -291,23 +291,25 @@ void monitor_check_errors_neon(const uint8_t* U_K, const uint8_t* V_K, size_t K,
 	}
 }
 
-void monitor_check_errors_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K, 
+void monitor_check_errors_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K,
                                   std::atomic<uint64_t>* n_bit_errors, std::atomic<uint64_t>* n_frame_errors) {
 	int fram_err = 0;
+	uint64_t cpt_bit_errors = 0;
 
 	for (size_t i = 0; i < K; i++) {
 		if (U_K[i] != V_K[i]) {
-			(*n_bit_errors)++;
+			cpt_bit_errors++;
 			fram_err = 1;
 		}
 	}
 
 	if (fram_err) {
+	    *n_bit_errors += cpt_bit_errors;
 		(*n_frame_errors)++;
 	}
 }
 
-void monitor_check_errors_neon_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K, 
+void monitor_check_errors_neon_atomic(const uint8_t* U_K, const uint8_t* V_K, size_t K,
                                         std::atomic<uint64_t>* n_bit_errors, std::atomic<uint64_t>* n_frame_errors) {
 	int fram_err = 0;
 
