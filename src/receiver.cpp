@@ -19,16 +19,15 @@ void channel_AWGN_add_noise(const int32_t* X_N, float* Y_N, size_t N, float sigm
 }
 
 void channel_AWGN_add_noise_neon(const int32_t* X_N, float* Y_N, size_t N, float sigma) {
-    // Taille du bloc conçue pour tenir parfaitement dans le cache L1
+    // Taille du bloc pour être adapté au cache L1
     constexpr size_t HALF_BLOCK = 256;
     constexpr size_t FULL_BLOCK = HALF_BLOCK * 2; // 512 éléments par itération
 
-    // Tampons mémoires alignés (très important pour les performances SIMD)
+    // Important pour les perfs SIMD que ça soit aligné d'après la doc
     alignas(16) float u1_buf[HALF_BLOCK];
     alignas(16) float u2_buf[HALF_BLOCK];
     alignas(16) float z_buf[FULL_BLOCK];
 
-    // Initialisation du PRNG scalaire standard
     std::random_device r;
     std::default_random_engine e1(r());
     std::uniform_real_distribution<float> unif(1e-7f, 1.0f); // ]0, 1]
@@ -38,67 +37,38 @@ void channel_AWGN_add_noise_neon(const int32_t* X_N, float* Y_N, size_t N, float
 
     size_t processed = 0;
 
-    // Boucle principale par blocs de 512
     while (processed < N) {
         size_t items_left = N - processed;
         size_t current_full = std::min(FULL_BLOCK, items_left);
         size_t current_half = (current_full + 1) / 2; // Division arrondie au supérieur
 
-        // --- ÉTAPE 1 : Générer les variables uniformes ---
-        // (C'est ici que se trouve votre dernier goulot d'étranglement scalaire)
         for (size_t i = 0; i < current_half; i++) {
             u1_buf[i] = unif(e1);
             u2_buf[i] = unif(e1);
         }
 
-        // --- ÉTAPE 2 : Transformation Box-Muller vectorisée ---
-        // ASTUCE : z0 remplit le début de z_buf, z1 remplit la 2ème moitié en décalant le pointeur.
-        // Cela nous donne `current_full` échantillons de bruit parfaits !
+        // z0 remplit le début de z_buf, z1 remplit la 2ème moitié en décalant le pointeur.
         box_muller_neon(u1_buf, u2_buf, z_buf, z_buf + current_half, current_half);
 
-        // --- ÉTAPE 3 : Application du bruit au signal X_N (Vectorisé) ---
-        size_t i = 0;
-
-        // On traite le bloc 4 par 4
-        for (; i + 3 < current_full; i += 4) {
-            // 1. Charger 4 entiers du signal source
+        for (size_t i =0; i + 3 < current_full; i += 4) {
             int32x4_t x_vec = vld1q_s32(X_N + processed + i);
-
-            // 2. Convertir les int32_t en float32
             float32x4_t x_f32 = vcvtq_f32_s32(x_vec);
 
-            // 3. Charger 4 valeurs de bruit gaussien depuis notre tampon
+            // Charger 4 valeurs de bruit gaussien depuis notre buffer
             float32x4_t z_vec = vld1q_f32(z_buf + i);
 
-            // 4. Mettre à l'échelle (bruit = z * sigma)
+            // Mettre à l'échelle (bruit = z * sigma)
             float32x4_t noise = vmulq_f32(z_vec, v_sigma);
 
-            // 5. Additionner (Y = X + bruit)
+            // Additionner (Y = X + bruit)
             float32x4_t y_vec = vaddq_f32(x_f32, noise);
 
-            // 6. Sauvegarder dans le tableau de destination
+            // Sauvegarder dans le tableau de destination
             vst1q_f32(Y_N + processed + i, y_vec);
         }
-
-        // --- ÉTAPE 4 : Gérer la traîne du bloc courant ---
-        // Si current_full n'est pas un multiple de 4 (se produit uniquement au dernier bloc)
-        for (; i < current_full; i++) {
-            Y_N[processed + i] = (float)X_N[processed + i] + z_buf[i] * sigma;
-        }
-
         processed += current_full;
     }
 }
-
-// void channel_AWGN_add_noise_neon(const int32_t* X_N, float* Y_N, size_t N, float sigma) {
-// 	std::random_device r;
-// 	std::default_random_engine e1(r());
-// 	std::normal_distribution<float> n(0, sigma);
-
-// 	for (size_t i = 0; i < N; i++) {
-// 		Y_N[i] = X_N[i] + n(e1);
-// 	}
-// }
 
 void modem_BPSK_demodulate(const float* Y_N, float* L_N, size_t N, float sigma) {
 	float facteur = 2.0f / (sigma * sigma);
@@ -206,7 +176,7 @@ void codec_repetition_hard_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t
 
 }
 void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t K, size_t n_reps){
-    // Vecteur constant rempli de '1' pour notre masque final
+    // Vecteur constant rempli de '1'
     int8x16_t ones_vec = vdupq_n_s8(1);
 
     for(size_t k = 0; k < K; k += 16){
@@ -217,7 +187,6 @@ void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t
         for(size_t i = 0; i < n_reps; i++){
             int8x16_t data_row = vld1q_s8(L8_N + i * K + k);
 
-            // UTILISATION DE L'ADDITION SATURÉE (vqaddq_s8)
             // Empêche le dépassement de la limite des 8 bits
             sum_vec = vqaddq_s8(sum_vec, data_row);
         }
@@ -226,17 +195,15 @@ void codec_repetition_soft_decode8_neon(const int8_t *L8_N, uint8_t *V_K, size_t
         // mask contient 0xFF (-1) si < 0, et 0x00 (0) sinon
         uint8x16_t mask = vcltzq_s8(sum_vec);
 
-        // On transforme les 0xFF en 0x01 grâce au ET bit-à-bit (vandq_s8)
+        // On transforme les 0xFF en 0x01
         int8x16_t result = vandq_s8((int8x16_t)mask, ones_vec);
 
-        // On stocke directement les 16 valeurs d'un coup dans V_K !
         // Le cast (int8_t*) est nécessaire car vst1q_s8 attend un pointeur signé.
         vst1q_s8((int8_t*)(V_K + k), result);
     }
 }
 void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, size_t f) {
     float scale = static_cast<float>(1 << f); // 2^f
-    // // Limites pour s bits (ex pour s=8 : min = -128, max = 127)
     float limit_min = static_cast<float>(-(1 << (s - 1)));
     float limit_max = static_cast<float>((1 << (s - 1)) - 1);
 
@@ -244,10 +211,9 @@ void quantizer_transform8(const float *L_N, int8_t *L8_N, size_t N, size_t s, si
         // Mise à l'échelle et arrondi
         float val = std::round(L_N[i] * scale);
 
-        val = std::max(val, limit_min); // Bloque la descente
-        val = std::min(val, limit_max); // Bloque la montée
+        val = std::max(val, limit_min);
+        val = std::min(val, limit_max);
 
-        // Cast sécurisé vers l'entier 8 bits
         L8_N[i] = static_cast<int8_t>(val);
     }
 }

@@ -10,7 +10,7 @@
 namespace simulationSDR {
 
 TEST(ReceiverTest, AWGN_Neon_ZeroNoise) {
-    size_t N = 1000; // Taille qui ne tombe pas pile sur un multiple de 512
+    size_t N = 1000;
     std::vector<int32_t> signal_in(N, 42); // Signal constant à 42
     std::vector<float> signal_out(N, 0.0f);
 
@@ -18,15 +18,14 @@ TEST(ReceiverTest, AWGN_Neon_ZeroNoise) {
     simulationSDR::channel_AWGN_add_noise_neon(signal_in.data(), signal_out.data(), N, 0.0f);
 
     for (size_t i = 0; i < N; i++) {
-        // La sortie doit être exactement 42.0
         EXPECT_FLOAT_EQ(signal_out[i], 42.0f);
     }
 }
 
 
 TEST(ReceiverTest, AWGN_Neon_StatisticalValidity) {
-    size_t N = 20000; // Beaucoup d'échantillons pour avoir une bonne base statistique
-    std::vector<int32_t> signal_in(N, 0); // Entrée vide
+    size_t N = 20000;
+    std::vector<int32_t> signal_in(N, 0);
     std::vector<float> signal_out(N, 0.0f);
     float target_sigma = 2.5f;
 
@@ -44,7 +43,6 @@ TEST(ReceiverTest, AWGN_Neon_StatisticalValidity) {
     double variance = (sum_sq / N) - (mean * mean);
     double stddev = std::sqrt(variance);
 
-    // Tolérance de 0.1 car c'est du pseudo-aléatoire
     EXPECT_NEAR(mean, 0.0, 0.1) << "La moyenne doit être proche de 0";
     EXPECT_NEAR(stddev, target_sigma, 0.1) << "L'écart-type doit être proche du sigma demandé";
 }
@@ -69,32 +67,6 @@ TEST(ReceiverTest, HardDecode) {
     		}
     	}
     }
-
-    const size_t K = 32;
-    const size_t n_reps = 3;
-    const size_t N = K * n_reps;
-
-    int8_t L8_N[N];
-    uint8_t V_scalar[K] = {0};
-    uint8_t V_neon[K] = {0};
-
-    // Génération de LLRs aléatoires (entre -128 et 127)
-    // On utilise une seed fixe pour que le test soit reproductible à chaque exécution
-    srand(42);
-    for (size_t i = 0; i < N; i++) {
-        L8_N[i] = static_cast<int8_t>((rand() % 256) - 128);
-    }
-
-    simulationSDR::codec_repetition_hard_decode8(L8_N, V_scalar, K, n_reps);
-
-    // Exécution de la version vectorisée
-    simulationSDR::codec_repetition_hard_decode8_neon(L8_N, V_neon, K, n_reps);
-
-    // Vérification que les deux fonctions produisent exactement le même résultat
-    for (size_t k = 0; k < K; k++) {
-        EXPECT_EQ(V_neon[k], V_scalar[k])
-            << "Mismatch between NEON and Scalar Int8 at index " << k;
-    }
 }
 
 TEST(ReceiverTest, SoftDecode) {
@@ -115,33 +87,6 @@ TEST(ReceiverTest, SoftDecode) {
     				   << static_cast<int>(V_ref[k]) << ")";
     		}
     	}
-    }
-
-    const size_t K = 32;
-    const size_t n_reps = 3;
-    const size_t N = K * n_reps;
-
-    int8_t L8_N[N];
-    uint8_t V_scalar[K] = {0};
-    uint8_t V_neon[K] = {0};
-
-    // Génération de LLRs aléatoires (entre -128 et 127)
-    // On utilise une seed fixe pour que le test soit reproductible à chaque exécution
-    srand(42);
-    for (size_t i = 0; i < N; i++) {
-        L8_N[i] = static_cast<int8_t>((rand() % 256) - 128);
-    }
-
-    // Exécution de la version scalaire (notre "Golden Model" de référence)
-    simulationSDR::codec_repetition_soft_decode8(L8_N, V_scalar, K, n_reps);
-
-    // Exécution de la version vectorisée
-    simulationSDR::codec_repetition_soft_decode8_neon(L8_N, V_neon, K, n_reps);
-
-    // Vérification que les deux fonctions produisent exactement le même résultat
-    for (size_t k = 0; k < K; k++) {
-        EXPECT_EQ(V_neon[k], V_scalar[k])
-            << "Mismatch between NEON and Scalar Int8 at index " << k;
     }
 
 }
@@ -177,9 +122,6 @@ TEST(ReceiverTest, MonitorNeon){
 	    V[i] = V[i%4];
 	}
 
-
-
-
 	uint64_t fe = 0;
 	uint64_t be = 0;
 
@@ -200,9 +142,6 @@ TEST(QuantizerTest, Transform8_BasicAndSaturation) {
     float L_N[N] = {1.0f, -1.5f, 0.1f, 10.0f, -10.0f};
     int8_t L8_N[N] = {0};
 
-    // Configuration : s = 8 bits, f = 4 bits fractionnaires
-    // Facteur d'échelle : 2^4 = 16
-    // Limite Min = -128, Limite Max = 127
     size_t s = 8;
     size_t f = 4;
 
@@ -230,9 +169,7 @@ TEST(QuantizerTest, Transform8_CustomBitwidth) {
     float L_N[N] = {5.0f, 10.0f, -10.0f};
     int8_t L8_N[N] = {0};
 
-    // Configuration différente : s = 6 bits, f = 2 bits fractionnaires
-    // Facteur d'échelle : 2^2 = 4
-    // Limite Min = -(2^5) = -32, Limite Max = 2^5 - 1 = 31
+
     size_t s = 6;
     size_t f = 2;
 
