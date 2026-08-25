@@ -1,4 +1,5 @@
-https://github.com/tifennf/simulationSDR
+# Simulateur d'une chaîne de traitement SDR (Software-Defined-Radio)
+Le simulateur a été optimisé pour tourner efficacement sur une NVIDIA Jetson Orin Nano.
 
 ## Initialisation du projet
 ```
