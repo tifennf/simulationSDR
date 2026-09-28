@@ -79,8 +79,6 @@ Les simulations permettent notamment de retrouver les comportements attendus :
 - le multithreading apporte un gain de débit régulier avec le nombre de cœurs ;
 - l'intérêt de la vectorisation NEON dépend fortement de la nature du bloc.
 
-> **Optionnel : mettre image ici : courbe Hard Input Decoder vs Soft Input Decoder de la page 6**
-
 ![Hard Input décodeur vs Soft Input décodeur](figures/hard_vs_soft.png)
 ## Compilation
 
